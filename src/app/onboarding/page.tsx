@@ -23,8 +23,8 @@ export default async function OnboardingPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
-      <h1 className="text-2xl font-semibold">Completa tu perfil</h1>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 py-6">
+      <h1 className="text-2xl font-semibold text-foreground">Completa tu perfil</h1>
       <OnboardingForm />
     </main>
   );

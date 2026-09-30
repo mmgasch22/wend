@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { resolveRequestedDate, todayIso } from "@/lib/date/dates";
+import { dashboardUrl } from "@/lib/navigation/dashboardUrl";
 import FoodSearchForm from "./FoodSearchForm";
 
 export default async function NewFoodPage({
@@ -53,7 +55,10 @@ export default async function NewFoodPage({
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto flex max-w-md flex-col gap-5 md:max-w-2xl">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-text-dim">
+          <Link href={dashboardUrl(date)} className="text-xs font-medium text-primary">
+            ‹ Volver
+          </Link>
+          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-text-dim">
             Añadiendo a
           </p>
           <h1 className="text-2xl font-semibold text-foreground">

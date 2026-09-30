@@ -37,6 +37,7 @@ export async function updateProfile(
   const activityLevel = formData.get("activity_level") as ActivityLevel;
   const goal = formData.get("goal") as Goal;
   const dailyStepsGoal = Number(formData.get("daily_steps_goal"));
+  const dailyWaterGoalMl = Number(formData.get("daily_water_goal_ml"));
 
   const { error: profileError } = await supabase
     .from("profiles")
@@ -48,6 +49,7 @@ export async function updateProfile(
       activity_level: activityLevel,
       goal,
       daily_steps_goal: dailyStepsGoal,
+      daily_water_goal_ml: dailyWaterGoalMl,
     })
     .eq("id", user.id);
 

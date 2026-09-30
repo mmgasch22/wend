@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/features/auth/actions";
 import { logWeight } from "@/features/weight/actions";
 import { logSteps } from "@/features/steps/actions";
+import { addWater } from "@/features/water/actions";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
@@ -47,7 +48,7 @@ export default async function DashboardPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("name, daily_steps_goal")
+    .select("name, daily_steps_goal, daily_water_goal_ml")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -72,6 +73,7 @@ export default async function DashboardPage({
     { data: latestTarget },
     { data: weightOnDate },
     { data: stepsOnDate },
+    { data: waterOnDate },
     { data: mealSlots },
     { data: dayLogsRaw },
   ] = await Promise.all([
@@ -98,6 +100,14 @@ export default async function DashboardPage({
     supabase
       .from("steps_logs")
       .select("value")
+      .eq("user_id", user.id)
+      .eq("date", date)
+      .maybeSingle(),
+    // Igual que steps_logs: una fila por fecha exacta, sin arrastrar el
+    // valor de un día anterior.
+    supabase
+      .from("water_logs")
+      .select("value_ml")
       .eq("user_id", user.id)
       .eq("date", date)
       .maybeSingle(),
@@ -401,6 +411,60 @@ export default async function DashboardPage({
               {stepsForSelectedDate === undefined ? "Registrar" : "Actualizar"}
             </Button>
           </form>
+        </Card>
+
+        <Card>
+          <p className="text-xs font-medium uppercase tracking-wide text-text-dim">
+            Agua
+          </p>
+          {profile.daily_water_goal_ml ? (
+            <>
+              <p className="mt-2 font-mono text-3xl font-semibold tabular-nums text-foreground">
+                {waterOnDate?.value_ml ?? 0}
+                <span className="ml-1 text-base font-medium opacity-70">
+                  / {profile.daily_water_goal_ml} ml
+                </span>
+              </p>
+              <div className="mt-2">
+                <ProgressBar
+                  value={progressPct(waterOnDate?.value_ml ?? 0, profile.daily_water_goal_ml)}
+                  color={macroColors.kcal}
+                />
+              </div>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-text-dim">
+              Todavía no hay un objetivo de agua definido.
+            </p>
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[250, 500].map((amount) => (
+              <form key={amount} action={addWater}>
+                <input type="hidden" name="date" value={date} />
+                <input type="hidden" name="amount_ml" value={amount} />
+                <Button type="submit" variant="secondary" className="text-sm">
+                  +{amount} ml
+                </Button>
+              </form>
+            ))}
+            <form action={addWater} className="flex flex-1 min-w-[9rem] items-center gap-2">
+              <input type="hidden" name="date" value={date} />
+              <input
+                type="number"
+                name="amount_ml"
+                step="1"
+                min="1"
+                placeholder="Otra cantidad"
+                aria-label="Otra cantidad de agua en ml"
+                className="w-full min-w-0 rounded-button border border-border bg-surface px-3 py-2 text-sm text-foreground"
+              />
+              <Button type="submit" variant="secondary" className="shrink-0 text-sm">
+                Añadir
+              </Button>
+            </form>
+          </div>
+          <p className="mt-2 text-[11px] text-text-dim">1 vaso ≈ 200–250 ml</p>
         </Card>
       </div>
     </main>

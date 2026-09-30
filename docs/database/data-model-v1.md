@@ -12,7 +12,7 @@ Aceptado (Sprint 0)
 
 
 
-FuelUp V1 gestiona 8 entidades de dominio, todas relacionadas con el usuario
+WEND V1 gestiona 8 entidades de dominio, todas relacionadas con el usuario
 
 (`profiles`) mediante `user\_id`. `profiles` extiende `auth.users` de Supabase
 
@@ -50,7 +50,7 @@ Extiende `auth.users` (Supabase Auth). Relación 1:1 mediante `id` compartido.
 
 | daily\_steps\_goal | int | Objetivo diario de pasos |
 
-| daily\_water\_goal\_ml | int | Sin usar desde Sprint 4 — el objetivo de agua se eliminó del producto (columna se deja tal cual, sin migración) |
+| daily\_water\_goal\_ml | int | Objetivo diario de agua, editable desde "Editar perfil" (recuperado en V1 tras haberse quitado del onboarding en Sprint 4 — ver Sprint "Agua V1") |
 
 
 
@@ -360,5 +360,5 @@ Constraint: `UNIQUE(user\_id, date)`
 
 &#x20; responsabilidad de autenticación (gestionada por Supabase) de los datos
 
-&#x20; de dominio propios de FuelUp.
+&#x20; de dominio propios de WEND.
 

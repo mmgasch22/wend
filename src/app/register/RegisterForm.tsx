@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { signUp } from "@/features/auth/actions";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 
 export default function RegisterForm() {
   const [state, action, pending] = useActionState(signUp, undefined);
@@ -10,39 +12,38 @@ export default function RegisterForm() {
   return (
     <form action={action} className="flex w-full max-w-sm flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-          className="rounded border px-3 py-2"
-        />
+        <label htmlFor="email" className="text-sm font-medium">
+          Email
+        </label>
+        <Input id="email" name="email" type="email" required autoComplete="email" />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="password">Contraseña</label>
-        <input
+        <label htmlFor="password" className="text-sm font-medium">
+          Contraseña
+        </label>
+        <Input
           id="password"
           name="password"
           type="password"
           required
           minLength={6}
           autoComplete="new-password"
-          className="rounded border px-3 py-2"
         />
       </div>
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
-      >
+
+      {state?.error && (
+        <p className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {state.error}
+        </p>
+      )}
+
+      <Button type="submit" disabled={pending}>
         {pending ? "Creando cuenta..." : "Crear cuenta"}
-      </button>
-      <p className="text-sm text-gray-500">
+      </Button>
+
+      <p className="text-center text-sm text-text-dim">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="underline">
+        <Link href="/login" className="font-medium text-primary">
           Inicia sesión
         </Link>
       </p>

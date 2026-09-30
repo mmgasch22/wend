@@ -17,6 +17,7 @@ interface ProfileEditFormProps {
     activityLevel: string;
     goal: string;
     dailyStepsGoal: number;
+    dailyWaterGoalMl: number;
   };
 }
 
@@ -125,12 +126,32 @@ export default function ProfileEditForm({ defaults }: ProfileEditFormProps) {
         />
       </div>
 
+      <div className="flex flex-col gap-1">
+        <label htmlFor="daily_water_goal_ml" className="text-sm font-medium">
+          Objetivo diario de agua (ml)
+        </label>
+        <input
+          id="daily_water_goal_ml"
+          name="daily_water_goal_ml"
+          type="number"
+          step="1"
+          min="1"
+          required
+          defaultValue={defaults.dailyWaterGoalMl}
+          className={inputClass}
+        />
+      </div>
+
       <p className="text-xs text-text-dim">
         El objetivo calórico y de macros se recalcula automáticamente con
         estos datos y tu peso más reciente al guardar.
       </p>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && (
+        <p className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {state.error}
+        </p>
+      )}
 
       <Button type="submit" disabled={pending}>
         {pending ? "Guardando..." : "Guardar cambios"}

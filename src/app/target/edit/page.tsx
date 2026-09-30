@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
@@ -55,9 +56,14 @@ export default async function TargetEditPage() {
   return (
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto flex max-w-md flex-col gap-5 md:max-w-2xl">
-        <h1 className="text-2xl font-semibold text-foreground">
-          Editar objetivo
-        </h1>
+        <div>
+          <Link href="/dashboard" className="text-xs font-medium text-primary">
+            ‹ Volver
+          </Link>
+          <h1 className="mt-1 text-2xl font-semibold text-foreground">
+            Editar objetivo
+          </h1>
+        </div>
         <Card>
           <TargetEditForm defaults={defaults} />
         </Card>

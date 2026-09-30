@@ -18,8 +18,8 @@ export default function ConfirmPage() {
   }, []);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6">
-      <p className="text-gray-600">Confirmando tu cuenta...</p>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-6">
+      <p className="text-sm text-text-dim">Confirmando tu cuenta...</p>
     </main>
   );
 }
