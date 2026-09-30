@@ -17,7 +17,7 @@ export function StatTile({
   progress,
 }: StatTileProps) {
   return (
-    <div className="rounded-card border border-border bg-surface p-4">
+    <div className="shadow-card rounded-card border border-border bg-surface p-4">
       <span
         className="block font-mono text-2xl font-semibold tabular-nums"
         style={{ color }}

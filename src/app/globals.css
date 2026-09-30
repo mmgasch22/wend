@@ -1,23 +1,25 @@
 @import "tailwindcss";
 
 /*
- * Tokens de marca — Clarity (paleta no definitiva, sujeta a revisión).
- * Cambiar la identidad visual más adelante es editar estos valores;
- * ningún componente debería tener un color en hexadecimal suelto.
+ * Tokens de marca — Clarity, direccion "Actual, refinado" (elegida tras
+ * comparar 3 direcciones visuales). Cambiar la identidad visual mas
+ * adelante es editar estos valores; ningun componente deberia tener un
+ * color en hexadecimal suelto.
+ *
+ * Estructura de tema: :root define SIEMPRE los valores claros. El oscuro
+ * se redefine dos veces con los mismos valores — una vez bajo
+ * prefers-color-scheme (para quien no ha elegido nada) y otra bajo
+ * [data-theme="dark"] (para quien ha pulsado el boton de tema, ver
+ * ThemeToggle) — para que la eleccion explicita siempre gane sobre la
+ * preferencia del sistema en ambos sentidos.
  */
 :root {
-  /* Fuerza los controles nativos (select, checkbox, scrollbar...) a
-   * pintarse en claro. Sin esto, en un navegador con preferencia oscura el
-   * <select> hereda texto claro (vía el reset de Tailwind) mientras su
-   * desplegable nativo abierto se pinta con fondo blanco por defecto —
-   * texto claro sobre fondo blanco, ilegible hasta que el SO resalta la
-   * opción en foco. Se revisará cuando Clarity tenga paleta oscura propia. */
   color-scheme: light;
 
-  --background: #f7f8f7;
+  --background: #f7f8f6;
   --foreground: #14201f;
   --surface: #ffffff;
-  --border: #e4e7e5;
+  --border: #e6e9e7;
   --text-dim: #5b6866;
 
   --primary: #0e7c86;
@@ -25,12 +27,13 @@
   --secondary: #3f4b5b;
   --accent: #e2985a;
 
-  --protein: #c6455b;
-  --carbs: #d4af2e;
+  --protein: #c14a5f;
+  --carbs: #c99a2e;
   --fat: #7b6ca6;
 
-  --radius-button: 8px;
-  --radius-card: 12px;
+  --radius-button: 10px;
+  --radius-card: 16px;
+  --shadow-card: 0 1px 2px rgba(20, 32, 31, 0.04), 0 10px 24px -16px rgba(20, 32, 31, 0.18);
 }
 
 @theme inline {
@@ -57,22 +60,49 @@
 }
 
 /*
- * Modo oscuro: estructura preparada, sin paleta propia diseñada todavía
- * (decisión explícita para Clarity — ver docs/design). Este es un
- * fallback funcional, no la versión final.
+ * Modo oscuro — variante "verde azulado" (provisional). Es la más fiel a
+ * la marca de las 3 variantes comparadas para el botón de tema; pendiente
+ * de confirmar cuál de las 3 se queda de forma definitiva. El acento y los
+ * colores de macros no cambian entre variantes, solo los neutros.
  */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #14201f;
-    --foreground: #f7f8f7;
-    --surface: #1b2725;
-    --border: #2c3735;
-    --text-dim: #9aa6a3;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #10201d;
+    --foreground: #eef4f2;
+    --surface: #17302b;
+    --border: #274841;
+    --text-dim: #9bb0ac;
+    --primary: #35b1ba;
+    --primary-hover: #58c4cc;
+    --protein: #e8768a;
+    --carbs: #e0b84f;
+    --fat: #a696d1;
+    --shadow-card: none;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #10201d;
+  --foreground: #eef4f2;
+  --surface: #17302b;
+  --border: #274841;
+  --text-dim: #9bb0ac;
+  --primary: #35b1ba;
+  --primary-hover: #58c4cc;
+  --protein: #e8768a;
+  --carbs: #e0b84f;
+  --fat: #a696d1;
+  --shadow-card: none;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.shadow-card {
+  box-shadow: var(--shadow-card);
 }

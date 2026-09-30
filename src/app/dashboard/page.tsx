@@ -5,6 +5,7 @@ import { signOut } from "@/features/auth/actions";
 import { logWeight } from "@/features/weight/actions";
 import { logSteps } from "@/features/steps/actions";
 import { addWater } from "@/features/water/actions";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
@@ -189,11 +190,14 @@ export default async function DashboardPage({
               </Link>
             </div>
           </div>
-          <form action={signOut}>
-            <Button variant="secondary" className="text-sm">
-              Cerrar sesión
-            </Button>
-          </form>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <ThemeToggle />
+            <form action={signOut}>
+              <Button variant="secondary" className="text-sm">
+                Cerrar sesión
+              </Button>
+            </form>
+          </div>
         </header>
 
         {errorMessage && (
