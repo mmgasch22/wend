@@ -1,4 +1,4 @@
-# FuelUp Development Rules
+# WEND Development Rules
 
 ## Philosophy
 

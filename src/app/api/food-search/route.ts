@@ -66,7 +66,7 @@ async function searchOpenFoodFacts(query: string): Promise<FoodSearchResult[]> {
 
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "FuelUp - Personal Nutrition App - Development",
+      "User-Agent": "WEND - Personal Nutrition App - Development",
     },
   });
 

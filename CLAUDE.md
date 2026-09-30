@@ -2,7 +2,7 @@
 
 # Seguimiento del proyecto: Notion
 
-FuelUp usa dos sistemas de registro con responsabilidades distintas:
+WEND usa dos sistemas de registro con responsabilidades distintas:
 
 - **GitHub / repositorio**: fuente de verdad del código y de la documentación técnica formal (ADRs en `docs/decisions/`, arquitectura, modelo de datos).
 - **Notion**: fuente de verdad del estado del proyecto — roadmap, tareas, backlog, decisiones (resumidas) y seguimiento de sesiones de trabajo.
@@ -11,7 +11,7 @@ No dupliques documentación técnica completa en Notion. Notion es un resumen y 
 
 ## Estructura de Notion a usar
 
-Página raíz: **🚀 FuelUp**. Es un dashboard visual y minimalista — al abrirla debe poderse entender en 5 segundos: 🔥 qué está en marcha, ⏭️ qué toca después, 📍 en qué sprint/fase estamos, 📚 qué se ha aprendido, 💡 qué ideas hay. Evita texto largo y no dupliques ahí información que ya vive en las bases de datos o en el repo.
+Página raíz: **🚀 WEND**. Es un dashboard visual y minimalista — al abrirla debe poderse entender en 5 segundos: 🔥 qué está en marcha, ⏭️ qué toca después, 📍 en qué sprint/fase estamos, 📚 qué se ha aprendido, 💡 qué ideas hay. Evita texto largo y no dupliques ahí información que ya vive en las bases de datos o en el repo.
 
 Dentro de ella:
 
@@ -36,7 +36,7 @@ Dentro de ella:
 
 **Convención de Sprint:** el campo `Sprint` (en Sprint Board y Product Backlog) solo tiene las opciones `Sprint 0, V1, V2, V3, V4, V5`. No añadas opciones nuevas. Las sub-fases dentro de V1 (Sprint 1 = Auth, Sprint 2 = Onboarding, etc.) se indican en el nombre de la tarea o en `Notas`, nunca como un valor nuevo de `Sprint`. En el Roadmap, en cambio, sí se usan como texto libre ("Sprint 1 — Auth") porque es contenido narrativo, no una propiedad estructurada.
 
-Existe una sección **"Legacy (por ordenar o migrar)"** dentro de la página FuelUp con páginas duplicadas de una estructura anterior (Backlog, Ideas, Learning, UI, Bugs, Changelog antiguos). No escribas ni actualices nada ahí.
+Existe una sección **"Legacy (por ordenar o migrar)"** dentro de la página WEND con páginas duplicadas de una estructura anterior (Backlog, Ideas, Learning, UI, Bugs, Changelog antiguos). No escribas ni actualices nada ahí.
 
 ## Cuándo actualizar Notion
 
