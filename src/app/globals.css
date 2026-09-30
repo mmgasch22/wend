@@ -60,19 +60,19 @@
 }
 
 /*
- * Modo oscuro — variante "verde azulado" (provisional). Es la más fiel a
- * la marca de las 3 variantes comparadas para el botón de tema; pendiente
- * de confirmar cuál de las 3 se queda de forma definitiva. El acento y los
- * colores de macros no cambian entre variantes, solo los neutros.
+ * Modo oscuro — variante "gris neutro" (elegida, de las 3 comparadas para
+ * el botón de tema). Fondo sin tinte de color a propósito: el acento
+ * petrol resalta más al no competir con un fondo teñido. El acento y los
+ * colores de macros son los mismos que en claro, no cambian con el tema.
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --background: #10201d;
-    --foreground: #eef4f2;
-    --surface: #17302b;
-    --border: #274841;
-    --text-dim: #9bb0ac;
+    --background: #121314;
+    --foreground: #f2f3f4;
+    --surface: #1a1b1d;
+    --border: #2d2f32;
+    --text-dim: #9a9da2;
     --primary: #35b1ba;
     --primary-hover: #58c4cc;
     --protein: #e8768a;
@@ -84,11 +84,11 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --background: #10201d;
-  --foreground: #eef4f2;
-  --surface: #17302b;
-  --border: #274841;
-  --text-dim: #9bb0ac;
+  --background: #121314;
+  --foreground: #f2f3f4;
+  --surface: #1a1b1d;
+  --border: #2d2f32;
+  --text-dim: #9a9da2;
   --primary: #35b1ba;
   --primary-hover: #58c4cc;
   --protein: #e8768a;
