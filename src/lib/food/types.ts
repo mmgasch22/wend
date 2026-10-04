@@ -19,6 +19,9 @@ export interface FoodSearchResult {
 export interface FoodSearchResponse {
   yourFoods: FoodSearchResult[];
   openFoodFacts: FoodSearchResult[];
+  // true si no se pudo consultar OpenFoodFacts (no es lo mismo que "sin
+  // resultados": el usuario debe saber que puede reintentar).
+  openFoodFactsUnavailable?: boolean;
 }
 
 // Una comida habitual del usuario (Desayuno, "Post-entreno"...). No depende

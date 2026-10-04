@@ -1,21 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { FoodSearchResponse, FoodSearchResult } from "@/lib/food/types";
-
-interface OpenFoodFactsProduct {
-  code?: string;
-  product_name?: string;
-  brands?: string;
-  nutriments?: {
-    "energy-kcal_100g"?: number;
-    proteins_100g?: number;
-    carbohydrates_100g?: number;
-    fat_100g?: number;
-    fiber_100g?: number;
-    sugars_100g?: number;
-    salt_100g?: number;
-  };
-}
+import {
+  mapOpenFoodFactsProducts,
+  type OpenFoodFactsProduct,
+} from "@/lib/food/openFoodFacts";
 
 interface FoodRow {
   id: string;
@@ -30,7 +19,10 @@ interface FoodRow {
   salt_100g: number | null;
 }
 
-const OPENFOODFACTS_SEARCH_URL = "https://world.openfoodfacts.org/cgi/search.pl";
+const USER_AGENT = "WEND - Personal Nutrition App - Development";
+const SEARCH_A_LICIOUS_URL = "https://search.openfoodfacts.org/search";
+const LEGACY_SEARCH_URL = "https://world.openfoodfacts.org/cgi/search.pl";
+const REQUEST_TIMEOUT_MS = 8000;
 
 function isIncomplete(row: {
   protein_100g: number | null;
@@ -56,58 +48,41 @@ function fromFoodRow(row: FoodRow): FoodSearchResult {
   };
 }
 
-async function searchOpenFoodFacts(query: string): Promise<FoodSearchResult[]> {
-  const url = new URL(OPENFOODFACTS_SEARCH_URL);
-  url.searchParams.set("search_terms", query);
-  url.searchParams.set("search_simple", "1");
-  url.searchParams.set("action", "process");
-  url.searchParams.set("json", "1");
-  url.searchParams.set("page_size", "20");
-
+async function fetchJson(url: URL): Promise<unknown> {
   const response = await fetch(url, {
-    headers: {
-      "User-Agent": "WEND - Personal Nutrition App - Development",
-    },
+    headers: { "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (!response.ok) {
-    throw new Error("OpenFoodFacts devolvió un error.");
+    throw new Error(`OpenFoodFacts devolvió ${response.status}.`);
   }
 
-  const data = (await response.json()) as { products?: OpenFoodFactsProduct[] };
-  const seenBarcodes = new Set<string>();
-  const results: FoodSearchResult[] = [];
+  return response.json();
+}
 
-  for (const product of data.products ?? []) {
-    const kcal100g = product.nutriments?.["energy-kcal_100g"];
-    if (!product.product_name || kcal100g === undefined) continue;
-    if (product.code) {
-      if (seenBarcodes.has(product.code)) continue;
-      seenBarcodes.add(product.code);
-    }
-
-    const protein100g = product.nutriments?.proteins_100g ?? null;
-    const carbs100g = product.nutriments?.carbohydrates_100g ?? null;
-    const fat100g = product.nutriments?.fat_100g ?? null;
-
-    results.push({
-      id: null,
-      barcode: product.code ?? null,
-      name: product.brands
-        ? `${product.product_name} (${product.brands})`
-        : product.product_name,
-      kcal100g,
-      protein100g,
-      carbs100g,
-      fat100g,
-      fiber100g: product.nutriments?.fiber_100g ?? null,
-      sugar100g: product.nutriments?.sugars_100g ?? null,
-      salt100g: product.nutriments?.salt_100g ?? null,
-      incomplete: isIncomplete({ protein_100g: protein100g, carbs_100g: carbs100g, fat_100g: fat100g }),
-    });
+// La búsqueda antigua (cgi/search.pl) falla de forma intermitente con 503,
+// así que se usa primero la API nueva (search-a-licious) y la antigua solo
+// como respaldo. Si las dos fallan, se lanza el error: la ruta lo convierte
+// en un aviso al usuario en vez de un engañoso "no hemos encontrado".
+async function searchOpenFoodFacts(query: string): Promise<FoodSearchResult[]> {
+  try {
+    const url = new URL(SEARCH_A_LICIOUS_URL);
+    url.searchParams.set("q", query);
+    url.searchParams.set("page_size", "20");
+    url.searchParams.set("fields", "code,product_name,brands,nutriments");
+    const data = (await fetchJson(url)) as { hits?: OpenFoodFactsProduct[] };
+    return mapOpenFoodFactsProducts(data.hits ?? []);
+  } catch {
+    const url = new URL(LEGACY_SEARCH_URL);
+    url.searchParams.set("search_terms", query);
+    url.searchParams.set("search_simple", "1");
+    url.searchParams.set("action", "process");
+    url.searchParams.set("json", "1");
+    url.searchParams.set("page_size", "20");
+    const data = (await fetchJson(url)) as { products?: OpenFoodFactsProduct[] };
+    return mapOpenFoodFactsProducts(data.products ?? []);
   }
-
-  return results;
 }
 
 // Proxy server-side a la Search API (legacy) de OpenFoodFacts, combinado
@@ -151,6 +126,11 @@ export async function GET(request: NextRequest) {
 
   const openFoodFacts =
     openFoodFactsResult.status === "fulfilled" ? openFoodFactsResult.value : [];
+  const openFoodFactsUnavailable = openFoodFactsResult.status === "rejected";
 
-  return NextResponse.json<FoodSearchResponse>({ yourFoods, openFoodFacts });
+  return NextResponse.json<FoodSearchResponse>({
+    yourFoods,
+    openFoodFacts,
+    openFoodFactsUnavailable,
+  });
 }

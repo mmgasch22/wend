@@ -37,6 +37,7 @@ export default function FoodSearchForm({
   const [query, setQuery] = useState("");
   const [yourFoods, setYourFoods] = useState<FoodSearchResult[]>([]);
   const [openFoodFacts, setOpenFoodFacts] = useState<FoodSearchResult[]>([]);
+  const [offUnavailable, setOffUnavailable] = useState(false);
   const [searching, setSearching] = useState(false);
   const [lastSearchedQuery, setLastSearchedQuery] = useState<string | null>(null);
   const [selected, setSelected] = useState<FoodSearchResult | null>(null);
@@ -57,6 +58,7 @@ export default function FoodSearchForm({
       if (trimmed.length < 2) {
         setYourFoods([]);
         setOpenFoodFacts([]);
+        setOffUnavailable(false);
         setLastSearchedQuery(null);
         return;
       }
@@ -73,6 +75,7 @@ export default function FoodSearchForm({
         .then((data: Partial<FoodSearchResponse>) => {
           setYourFoods(data.yourFoods ?? []);
           setOpenFoodFacts(data.openFoodFacts ?? []);
+          setOffUnavailable(data.openFoodFactsUnavailable ?? false);
           setLastSearchedQuery(trimmed);
         })
         .catch(() => {
@@ -86,12 +89,15 @@ export default function FoodSearchForm({
   }, [query]);
 
   const trimmedQuery = query.trim();
+  const searchSettled =
+    !searching && lastSearchedQuery === trimmedQuery && trimmedQuery.length >= 2;
   const noResults =
-    !searching &&
-    lastSearchedQuery === trimmedQuery &&
-    trimmedQuery.length >= 2 &&
+    searchSettled &&
+    !offUnavailable &&
     yourFoods.length === 0 &&
     openFoodFacts.length === 0;
+  const offUnavailableNotice =
+    searchSettled && offUnavailable && openFoodFacts.length === 0;
 
   const manualKcalNum = parseFloat(manualKcal);
   const manualProteinNum = parseFloat(manualProtein);
@@ -215,6 +221,22 @@ export default function FoodSearchForm({
                   />
                 ))}
               </ul>
+            </div>
+          )}
+
+          {offUnavailableNotice && (
+            <div className="flex flex-col items-start gap-2 rounded-card border border-border bg-surface px-3 py-3">
+              <p className="text-sm text-text-dim">
+                No se ha podido consultar OpenFoodFacts ahora mismo. Inténtalo de
+                nuevo en unos segundos o crea el alimento a mano.
+              </p>
+              <button
+                type="button"
+                onClick={startManualFromQuery}
+                className="text-sm font-semibold text-primary"
+              >
+                + Crear &quot;{trimmedQuery}&quot; manualmente
+              </button>
             </div>
           )}
 
