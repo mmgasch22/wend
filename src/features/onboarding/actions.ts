@@ -15,6 +15,8 @@ export type OnboardingActionState = { error: string } | undefined;
 // cuanto quiera; esto solo evita que el primer día vea un dashboard vacío.
 const DEFAULT_MEAL_SLOTS = ["Desayuno", "Comida", "Snack", "Cena"];
 
+const DEFAULT_DAILY_WATER_GOAL_ML = 2000;
+
 export async function completeOnboarding(
   _prevState: OnboardingActionState,
   formData: FormData,
@@ -47,6 +49,10 @@ export async function completeOnboarding(
     activity_level: activityLevel,
     goal,
     daily_steps_goal: dailyStepsGoal,
+    // El onboarding no pregunta por el agua (decisión de producto de Sprint 4),
+    // pero sin objetivo la tarjeta de Agua queda "vacía" para todo usuario
+    // nuevo. 2000 ml (~8 vasos) es un valor inicial, editable en Editar perfil.
+    daily_water_goal_ml: DEFAULT_DAILY_WATER_GOAL_ML,
   });
 
   if (profileError) {

@@ -421,24 +421,25 @@ export default async function DashboardPage({
           <p className="text-xs font-medium uppercase tracking-wide text-text-dim">
             Agua
           </p>
+          <p className="mt-2 font-mono text-3xl font-semibold tabular-nums text-foreground">
+            {waterOnDate?.value_ml ?? 0}
+            <span className="ml-1 text-base font-medium opacity-70">
+              {profile.daily_water_goal_ml ? `/ ${profile.daily_water_goal_ml} ml` : "ml"}
+            </span>
+          </p>
           {profile.daily_water_goal_ml ? (
-            <>
-              <p className="mt-2 font-mono text-3xl font-semibold tabular-nums text-foreground">
-                {waterOnDate?.value_ml ?? 0}
-                <span className="ml-1 text-base font-medium opacity-70">
-                  / {profile.daily_water_goal_ml} ml
-                </span>
-              </p>
-              <div className="mt-2">
-                <ProgressBar
-                  value={progressPct(waterOnDate?.value_ml ?? 0, profile.daily_water_goal_ml)}
-                  color={macroColors.kcal}
-                />
-              </div>
-            </>
+            <div className="mt-2">
+              <ProgressBar
+                value={progressPct(waterOnDate?.value_ml ?? 0, profile.daily_water_goal_ml)}
+                color={macroColors.kcal}
+              />
+            </div>
           ) : (
-            <p className="mt-2 text-sm text-text-dim">
-              Todavía no hay un objetivo de agua definido.
+            <p className="mt-1 text-xs text-text-dim">
+              Sin objetivo diario.{" "}
+              <Link href="/profile/edit" className="font-medium text-primary">
+                Definirlo en Editar perfil
+              </Link>
             </p>
           )}
 
