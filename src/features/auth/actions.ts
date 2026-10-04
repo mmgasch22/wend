@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { authErrorMessage } from "@/lib/auth/errorMessages";
 
 export type AuthActionState = { error: string } | undefined;
 
@@ -25,7 +26,7 @@ export async function signUp(
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: authErrorMessage(error) };
   }
 
   redirect("/login?registered=1");
@@ -46,7 +47,7 @@ export async function signIn(
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: authErrorMessage(error) };
   }
 
   redirect("/dashboard");
@@ -77,7 +78,7 @@ export async function requestPasswordReset(
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: authErrorMessage(error) };
   }
 
   redirect("/login?reset=sent");

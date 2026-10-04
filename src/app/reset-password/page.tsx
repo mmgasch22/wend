@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { authErrorMessage } from "@/lib/auth/errorMessages";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -39,7 +40,7 @@ export default function ResetPasswordPage() {
     setPending(false);
 
     if (error) {
-      setError(error.message);
+      setError(authErrorMessage(error));
       return;
     }
 
