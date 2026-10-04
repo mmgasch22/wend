@@ -67,7 +67,6 @@ export default function MealSlotsSection({
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const createFormRef = useRef<HTMLFormElement>(null);
 
   const draggingId = useRef<string | null>(null);
   const rowRefs = useRef(new Map<string, HTMLElement>());
@@ -335,12 +334,7 @@ export default function MealSlotsSection({
         </div>
       )}
 
-      <form
-        ref={createFormRef}
-        action={createMealSlot}
-        onSubmit={() => createFormRef.current?.reset()}
-        className="flex items-center gap-2"
-      >
+      <form action={createMealSlot} className="flex items-center gap-2">
         <input type="hidden" name="date" value={date} />
         <input
           name="name"
