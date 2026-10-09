@@ -2,7 +2,14 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { logFood } from "@/features/food/actions";
+import {
+  formatMacroGrams,
+  joinLabels,
+  missingMacroLabels,
+  scaleNutrients,
+} from "@/lib/food/portion";
 import type { FoodSearchResponse, FoodSearchResult } from "@/lib/food/types";
+import BarcodeScanPanel from "./BarcodeScanPanel";
 
 type Tab = "search" | "manual";
 
@@ -18,8 +25,9 @@ interface ActiveFood {
 const inputClass =
   "rounded-button border border-border bg-surface px-3 py-2 text-sm text-foreground";
 
-function scaledMacro(value100g: number | null, factor: number): string {
-  return value100g === null ? "— sin dato" : `${Math.round(value100g * factor)} g`;
+// Por 100 g con un decimal como máximo; "sin dato" si no está registrado.
+function per100g(value: number | null): string {
+  return value === null ? "sin dato" : `${Math.round(value * 10) / 10} g`;
 }
 
 export default function FoodSearchForm({
@@ -43,12 +51,18 @@ export default function FoodSearchForm({
   const [selected, setSelected] = useState<FoodSearchResult | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Escáner de códigos de barras
+  const [scanOpen, setScanOpen] = useState(false);
+  const [selectedFromScan, setSelectedFromScan] = useState(false);
+
   // Alimento manual
   const [manualName, setManualName] = useState("");
   const [manualKcal, setManualKcal] = useState("");
   const [manualProtein, setManualProtein] = useState("");
   const [manualCarbs, setManualCarbs] = useState("");
   const [manualFat, setManualFat] = useState("");
+  // Código de barras que se asociará al alimento manual (si viene del escáner).
+  const [manualBarcode, setManualBarcode] = useState("");
 
   const [grams, setGrams] = useState("");
 
@@ -135,20 +149,54 @@ export default function FoodSearchForm({
 
   const readyToLog = tab === "manual" || selected !== null;
   const gramsNum = parseFloat(grams);
-  const showPreview = activeFood !== null && gramsNum > 0;
-  const factor = gramsNum > 0 ? gramsNum / 100 : 0;
+  const portion = activeFood ? scaleNutrients(activeFood, gramsNum) : null;
+
+  function chooseTab(next: Tab) {
+    setScanOpen(false);
+    if (next === "manual" && tab !== "manual") setManualBarcode("");
+    setTab(next);
+  }
+
+  function selectFromSearch(result: FoodSearchResult) {
+    setSelected(result);
+    setSelectedFromScan(false);
+  }
+
+  function clearSelection() {
+    setSelected(null);
+    setSelectedFromScan(false);
+  }
 
   function startManualFromQuery() {
     setManualName(trimmedQuery);
+    setManualBarcode("");
     setTab("manual");
   }
+
+  // El escáner encontró un producto: se muestra para confirmarlo. No se
+  // registra nada hasta que el usuario elige la cantidad y pulsa "Registrar".
+  function handleScanFound(food: FoodSearchResult) {
+    setSelected(food);
+    setSelectedFromScan(true);
+    setGrams("");
+    setScanOpen(false);
+  }
+
+  function handleScanCreateManual(init: { name: string | null; barcode: string }) {
+    setManualName(init.name ?? "");
+    setManualBarcode(init.barcode);
+    setScanOpen(false);
+    setTab("manual");
+  }
+
+  const missingMacros = selected ? missingMacroLabels(selected) : [];
 
   return (
     <form action={action} className="flex w-full flex-col gap-4">
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => setTab("search")}
+          onClick={() => chooseTab("search")}
           className={`rounded-button px-4 py-2 text-sm font-semibold ${
             tab === "search"
               ? "bg-primary text-white"
@@ -159,7 +207,7 @@ export default function FoodSearchForm({
         </button>
         <button
           type="button"
-          onClick={() => setTab("manual")}
+          onClick={() => chooseTab("manual")}
           className={`rounded-button px-4 py-2 text-sm font-semibold ${
             tab === "manual"
               ? "bg-primary text-white"
@@ -174,11 +222,29 @@ export default function FoodSearchForm({
       <input type="hidden" name="meal_slot_id" value={mealSlotId} />
       <input type="hidden" name="date" value={date} />
 
-      {tab === "search" && !selected && (
+      {tab === "search" && !selected && scanOpen && (
+        <BarcodeScanPanel
+          onFound={handleScanFound}
+          onCreateManual={handleScanCreateManual}
+          onClose={() => setScanOpen(false)}
+        />
+      )}
+
+      {tab === "search" && !selected && !scanOpen && (
         <div className="flex flex-col gap-2">
-          <label htmlFor="query" className="text-sm font-medium">
-            Buscar alimento
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="query" className="text-sm font-medium">
+              Buscar alimento
+            </label>
+            <button
+              type="button"
+              onClick={() => setScanOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-button border border-border px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-background"
+            >
+              <BarcodeIcon />
+              Escanear código
+            </button>
+          </div>
           <input
             id="query"
             type="text"
@@ -200,7 +266,7 @@ export default function FoodSearchForm({
                   <FoodResultRow
                     key={`local-${result.id}`}
                     result={result}
-                    onSelect={() => setSelected(result)}
+                    onSelect={() => selectFromSearch(result)}
                   />
                 ))}
               </ul>
@@ -217,7 +283,7 @@ export default function FoodSearchForm({
                   <FoodResultRow
                     key={`off-${result.barcode}-${result.name}`}
                     result={result}
-                    onSelect={() => setSelected(result)}
+                    onSelect={() => selectFromSearch(result)}
                   />
                 ))}
               </ul>
@@ -258,25 +324,41 @@ export default function FoodSearchForm({
       )}
 
       {tab === "search" && selected && (
-        <div className="flex items-center justify-between rounded-card border border-border bg-surface px-3 py-2">
-          <div>
+        <div className="flex items-start justify-between gap-3 rounded-card border border-border bg-surface px-3 py-2">
+          <div className="min-w-0">
             <p className="text-sm font-medium">{selected.name}</p>
-            <p className="font-mono text-xs text-text-dim">
-              {Math.round(selected.kcal100g)} kcal/100g
+            <p className="mt-0.5 font-mono text-xs text-text-dim">
+              {Math.round(selected.kcal100g)} kcal · prot. {per100g(selected.protein100g)} ·
+              carb. {per100g(selected.carbs100g)} · grasa {per100g(selected.fat100g)}
+              <span className="font-sans"> por 100 g</span>
             </p>
-            {selected.incomplete && (
-              <p className="mt-0.5 text-xs text-text-dim">
-                Datos nutricionales incompletos.
+            {missingMacros.length > 0 && (
+              <p className="mt-1 text-xs text-text-dim">
+                Faltan datos de {joinLabels(missingMacros)}: no se sumarán a tus macros.
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setSelected(null)}
-            className="text-xs font-semibold text-primary"
-          >
-            Cambiar
-          </button>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="text-xs font-semibold text-primary"
+            >
+              Cambiar
+            </button>
+            {selectedFromScan && (
+              <button
+                type="button"
+                onClick={() => {
+                  clearSelection();
+                  setScanOpen(true);
+                }}
+                className="text-xs font-semibold text-primary"
+              >
+                Escanear otro
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -301,6 +383,22 @@ export default function FoodSearchForm({
 
       {tab === "manual" && (
         <div className="flex flex-col gap-3">
+          {manualBarcode && (
+            <div className="flex items-start justify-between gap-3 rounded-card border border-border bg-surface px-3 py-2">
+              <p className="text-xs text-text-dim">
+                Código de barras <span className="font-mono">{manualBarcode}</span>: se
+                asociará a este alimento para reconocerlo la próxima vez que lo escanees.
+              </p>
+              <button
+                type="button"
+                onClick={() => setManualBarcode("")}
+                className="shrink-0 text-xs font-semibold text-primary"
+              >
+                Quitar
+              </button>
+            </div>
+          )}
+          <input type="hidden" name="barcode" value={manualBarcode} />
           <div className="flex flex-col gap-1">
             <label htmlFor="name" className="text-sm font-medium">
               Nombre
@@ -394,16 +492,20 @@ export default function FoodSearchForm({
               id="grams"
               name="grams"
               type="number"
+              inputMode="decimal"
               step="0.1"
               min="0.1"
               required
+              // Tras escanear, lo siguiente que hace falta es la cantidad:
+              // el cursor ya está en ella.
+              autoFocus={selectedFromScan}
               value={grams}
               onChange={(e) => setGrams(e.target.value)}
               className={inputClass}
             />
           </div>
 
-          {showPreview && activeFood && (
+          {portion && activeFood && (
             <div className="rounded-card border border-border bg-surface px-4 py-3">
               <p className="text-xs font-medium uppercase tracking-wide text-text-dim">
                 Para {grams} g
@@ -412,24 +514,20 @@ export default function FoodSearchForm({
                 className="mt-1 font-mono text-2xl font-semibold tabular-nums"
                 style={{ color: "var(--primary)" }}
               >
-                {Math.round(activeFood.kcal100g * factor)}
+                {portion.kcal}
                 <span className="ml-1 text-sm font-medium opacity-70">kcal</span>
               </p>
               <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
                 <div>
-                  <p className="font-mono">
-                    {scaledMacro(activeFood.protein100g, factor)}
-                  </p>
+                  <p className="font-mono">{formatMacroGrams(portion.protein)}</p>
                   <p className="text-xs text-text-dim">Proteína</p>
                 </div>
                 <div>
-                  <p className="font-mono">
-                    {scaledMacro(activeFood.carbs100g, factor)}
-                  </p>
+                  <p className="font-mono">{formatMacroGrams(portion.carbs)}</p>
                   <p className="text-xs text-text-dim">Carbohidratos</p>
                 </div>
                 <div>
-                  <p className="font-mono">{scaledMacro(activeFood.fat100g, factor)}</p>
+                  <p className="font-mono">{formatMacroGrams(portion.fat)}</p>
                   <p className="text-xs text-text-dim">Grasa</p>
                 </div>
               </div>
@@ -458,6 +556,24 @@ export default function FoodSearchForm({
         </div>
       )}
     </form>
+  );
+}
+
+function BarcodeIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2" />
+      <path d="M8 8v8M11 8v8M14 8v8M17 8v8" />
+    </svg>
   );
 }
 
