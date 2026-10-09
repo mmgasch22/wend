@@ -8,23 +8,36 @@
 //     el escáner no paga su peso, y quien lo abre en un Chrome de Android
 //     tampoco, porque usa el nativo.
 
-import { fitToWidth, visibleRegion } from "./region";
+import {
+  LEGACY_SCHEDULE,
+  passForAttempt,
+  planPass,
+  SCAN_SCHEDULE,
+  type PassSpec,
+} from "./analysis";
+import { createLuminanceDecoder, rgbaToLuminance } from "./decodeLuminance";
+import type { ScannerProfile } from "./camera";
+
+// Datos técnicos del último intento, para el modo de diagnóstico.
+export interface ReaderStats {
+  pass: string;
+  analyzedWidth: number;
+  analyzedHeight: number;
+  lastMs: number;
+}
 
 export interface BarcodeReader {
   readonly kind: "native" | "zxing";
-  // Intenta leer UN código en el fotograma actual del vídeo.
-  detect(video: HTMLVideoElement): Promise<string | null>;
+  // Intenta leer UN código en el fotograma actual del vídeo. El número de
+  // intento permite alternar la forma de analizar entre intentos.
+  detect(video: HTMLVideoElement, attempt: number): Promise<string | null>;
+  stats(): ReaderStats | null;
   dispose(): void;
 }
 
 // Solo formatos de producto de consumo: menos formatos = lecturas más
 // rápidas y menos falsos positivos.
 const NATIVE_FORMATS = ["ean_13", "ean_8", "upc_a"];
-
-// Ancho máximo de la zona que analiza ZXing. Con el código ocupando buena
-// parte del recuadro, 640 px dan varios píxeles por barra; más resolución no
-// mejora la lectura y sí ralentiza cada intento en móviles modestos.
-const ZXING_MAX_FRAME_WIDTH = 640;
 
 interface NativeDetector {
   detect(source: CanvasImageSource): Promise<{ rawValue: string }[]>;
@@ -45,12 +58,21 @@ async function createNativeReader(): Promise<BarcodeReader | null> {
     if (formats.length === 0) return null;
 
     const detector = new Detector({ formats });
+    let lastMs = 0;
     return {
       kind: "native",
       async detect(video) {
+        const start = performance.now();
         const results = await detector.detect(video);
+        lastMs = performance.now() - start;
         return results[0]?.rawValue ?? null;
       },
+      stats: () => ({
+        pass: "fotograma completo (nativo)",
+        analyzedWidth: 0,
+        analyzedHeight: 0,
+        lastMs,
+      }),
       dispose() {},
     };
   } catch {
@@ -58,62 +80,61 @@ async function createNativeReader(): Promise<BarcodeReader | null> {
   }
 }
 
-async function createZxingReader(): Promise<BarcodeReader> {
+function describePass(spec: PassSpec): string {
+  return `${spec.region === "band" ? "franja" : "visible"} @${spec.maxWidth}`;
+}
+
+async function createZxingReader(profile: ScannerProfile): Promise<BarcodeReader> {
   const zxing = await import("@zxing/library");
-
-  const hints = new Map<import("@zxing/library").DecodeHintType, unknown>();
-  hints.set(zxing.DecodeHintType.POSSIBLE_FORMATS, [
-    zxing.BarcodeFormat.EAN_13,
-    zxing.BarcodeFormat.EAN_8,
-    zxing.BarcodeFormat.UPC_A,
-  ]);
-  // Sin TRY_HARDER: ese modo prueba además el fotograma girado 90° y más
-  // líneas de lectura, y duplica el coste de cada intento. El usuario ya
-  // sostiene el código en horizontal, dentro del recuadro.
-
-  // Se usa el lector de códigos 1D directamente (en vez de MultiFormatReader):
-  // este escribe un `console.warn` en cada intento sin código, que son casi
-  // todos. El resultado es el mismo.
-  const reader = new zxing.MultiFormatOneDReader(hints);
+  const decoder = createLuminanceDecoder(zxing);
+  const schedule = profile === "anterior" ? LEGACY_SCHEDULE : SCAN_SCHEDULE;
 
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d", { willReadFrequently: true });
+  let luminance = new Uint8ClampedArray(0);
+  let last: ReaderStats | null = null;
 
   return {
     kind: "zxing",
-    async detect(video) {
+    async detect(video, attempt) {
       const { videoWidth, videoHeight } = video;
       if (!context || !videoWidth || !videoHeight) return null;
 
-      // Solo la zona que el usuario ve en pantalla, reducida.
-      const region = visibleRegion(videoWidth, videoHeight);
-      const size = fitToWidth(region.sw, region.sh, ZXING_MAX_FRAME_WIDTH);
-      canvas.width = size.width;
-      canvas.height = size.height;
+      const start = performance.now();
+      const spec = passForAttempt(schedule, attempt);
+      const plan = planPass(spec, videoWidth, videoHeight);
+
+      canvas.width = plan.width;
+      canvas.height = plan.height;
       context.drawImage(
         video,
-        region.sx,
-        region.sy,
-        region.sw,
-        region.sh,
+        plan.region.sx,
+        plan.region.sy,
+        plan.region.sw,
+        plan.region.sh,
         0,
         0,
-        size.width,
-        size.height,
+        plan.width,
+        plan.height,
       );
 
-      try {
-        const source = new zxing.HTMLCanvasElementLuminanceSource(canvas);
-        const bitmap = new zxing.BinaryBitmap(new zxing.HybridBinarizer(source));
-        return reader.decode(bitmap, hints).getText();
-      } catch {
-        // "No hay ningún código en este fotograma" llega como excepción: es
-        // lo normal en casi todos los intentos, no un error.
-        return null;
-      }
+      const pixels = context.getImageData(0, 0, plan.width, plan.height).data;
+      const size = plan.width * plan.height;
+      if (luminance.length !== size) luminance = new Uint8ClampedArray(size);
+      rgbaToLuminance(pixels, luminance);
+
+      const text = decoder.decode(luminance, plan.width, plan.height);
+      last = {
+        pass: describePass(spec),
+        analyzedWidth: plan.width,
+        analyzedHeight: plan.height,
+        lastMs: performance.now() - start,
+      };
+      return text;
     },
+    stats: () => last,
     dispose() {
-      reader.reset();
+      decoder.dispose();
     },
   };
 }
@@ -121,9 +142,11 @@ async function createZxingReader(): Promise<BarcodeReader> {
 // Devuelve el mejor lector disponible. Si el nativo existe pero falla de
 // forma repetida (pasa en algunos Android sin los servicios de Google), se
 // cambia solo a ZXing en vez de quedarse "mirando" sin leer nada.
-export async function createBarcodeReader(): Promise<BarcodeReader> {
+export async function createBarcodeReader(
+  profile: ScannerProfile = "estandar",
+): Promise<BarcodeReader> {
   const native = await createNativeReader();
-  if (!native) return createZxingReader();
+  if (!native) return createZxingReader(profile);
 
   const MAX_NATIVE_FAILURES = 3;
   let failures = 0;
@@ -133,20 +156,21 @@ export async function createBarcodeReader(): Promise<BarcodeReader> {
     get kind() {
       return fallback ? "zxing" : "native";
     },
-    async detect(video) {
-      if (fallback) return fallback.detect(video);
+    async detect(video, attempt) {
+      if (fallback) return fallback.detect(video, attempt);
       try {
-        const code = await native.detect(video);
+        const code = await native.detect(video, attempt);
         failures = 0;
         return code;
       } catch {
         failures += 1;
         if (failures >= MAX_NATIVE_FAILURES) {
-          fallback = await createZxingReader();
+          fallback = await createZxingReader(profile);
         }
         return null;
       }
     },
+    stats: () => (fallback ?? native).stats(),
     dispose() {
       native.dispose();
       fallback?.dispose();

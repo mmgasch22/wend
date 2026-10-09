@@ -41,10 +41,11 @@ de la comida que se estaba rellenando.
   escáner en un navegador sin lector nativo. La página en sí carga ~10 KB más.
 - Solo EAN-13, EAN-8 y UPC-A, con el lector 1D directo (`MultiFormatOneDReader`).
   `MultiFormatReader` escribe un `console.warn` en cada intento sin código.
-- Solo se analiza la **zona visible** del vídeo, reducida a 640 px de ancho, y
-  sin `TRY_HARDER`. Medido: un intento sin código pasó de ~286 ms a ~15 ms
-  (mediana, escritorio, modo desarrollo, fotograma vertical de 720×1280). En un
-  móvil real será más lento, pero con margen.
+- Se analiza una franja central del vídeo a resolución casi nativa, alternando
+  tres pasadas por intento, y sin `TRY_HARDER`. La primera versión analizaba toda
+  la zona visible reducida a 640 px, lo que limitaba la distancia de lectura;
+  se cambió tras una prueba real. Detalle, medidas y método de prueba en
+  `docs/scanner-distance.md`.
 - Un mismo código nunca provoca dos consultas: el bucle de lectura se detiene al
   entregar el primer código aceptable, solo hay una consulta en vuelo y el botón
   de registrar se desactiva mientras se envía.

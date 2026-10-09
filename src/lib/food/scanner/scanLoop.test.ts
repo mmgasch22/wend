@@ -139,4 +139,21 @@ describe("createScanLoop", () => {
     expect(maxActive).toBe(1);
     expect(detect.mock.calls.length).toBeGreaterThan(1);
   });
+
+  it("informa del número de intento para poder alternar la forma de leer", async () => {
+    const seen: number[] = [];
+    const loop = createScanLoop({
+      detect: (attempt) => {
+        seen.push(attempt);
+        return attempt === 3 ? "96385074" : null;
+      },
+      onCode: vi.fn(),
+      intervalMs: 50,
+    });
+
+    loop.start();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(seen).toEqual([0, 1, 2, 3]);
+  });
 });

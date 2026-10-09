@@ -75,15 +75,106 @@ export function cameraProblemMessage(problem: CameraProblem): string {
   }
 }
 
-// Ajustes de vídeo pensados para leer códigos: cámara trasera, resolución
-// suficiente para ver las barras y enfoque continuo cuando el móvil lo ofrece
-// (`advanced` es opcional: si no lo soporta se ignora, no da error).
-export const SCANNER_VIDEO_CONSTRAINTS: MediaStreamConstraints = {
-  audio: false,
-  video: {
-    facingMode: { ideal: "environment" },
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
-    advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
-  },
-};
+// ---------------------------------------------------------------------------
+// Ajustes de vídeo y capacidades reales de la cámara
+// ---------------------------------------------------------------------------
+
+// "estandar": la versión nueva. "anterior": la de antes de mejorar la distancia
+// de lectura, que se conserva solo para poder comparar las dos en el mismo
+// móvil (`?scanner=anterior` en la dirección). Se puede borrar después.
+export type ScannerProfile = "estandar" | "anterior";
+
+export function parseScannerProfile(value: string | null | undefined): ScannerProfile {
+  return value === "anterior" ? "anterior" : "estandar";
+}
+
+// Cámara trasera y la mayor resolución razonable: 1080p. Todo es "ideal", no
+// obligatorio: un móvil que no llegue a 1080p entrega lo más cercano que tenga
+// en vez de fallar. Más resolución = más píxeles por barra a la misma
+// distancia, que es lo que limita la lectura; 4K costaría batería y CPU sin
+// mejorar lo que el lector aprovecha (ver docs/scanner-distance.md).
+export function scannerVideoConstraints(profile: ScannerProfile): MediaStreamConstraints {
+  const size =
+    profile === "anterior"
+      ? { width: { ideal: 1280 }, height: { ideal: 720 } }
+      : { width: { ideal: 1920 }, height: { ideal: 1080 } };
+  return {
+    audio: false,
+    video: { facingMode: { ideal: "environment" }, ...size },
+  };
+}
+
+export interface ZoomRange {
+  min: number;
+  max: number;
+  step: number;
+}
+
+export interface CameraCapabilities {
+  zoom: ZoomRange | null;
+  focusContinuous: boolean;
+  torch: boolean;
+}
+
+interface ExtendedCapabilities {
+  zoom?: { min?: number; max?: number; step?: number };
+  focusMode?: string[];
+  torch?: boolean;
+}
+
+// Lee lo que la cámara REAL dice que puede hacer. Zoom, enfoque y linterna no
+// son estándar en todos los navegadores (Safari/iPhone y Firefox muchas veces
+// no los exponen): si no están, simplemente no se ofrecen.
+export function readCameraCapabilities(track: {
+  getCapabilities?: () => unknown;
+}): CameraCapabilities {
+  let raw: ExtendedCapabilities = {};
+  try {
+    raw = (track.getCapabilities?.() ?? {}) as ExtendedCapabilities;
+  } catch {
+    raw = {};
+  }
+
+  const zoom =
+    raw.zoom && typeof raw.zoom.max === "number" && typeof raw.zoom.min === "number"
+      ? { min: raw.zoom.min, max: raw.zoom.max, step: raw.zoom.step ?? 0.1 }
+      : null;
+
+  return {
+    zoom: zoom && zoom.max > zoom.min ? zoom : null,
+    focusContinuous: Array.isArray(raw.focusMode) && raw.focusMode.includes("continuous"),
+    torch: raw.torch === true,
+  };
+}
+
+// Niveles de zoom que se ofrecen: solo los que el móvil admite, y solo si el
+// rango sirve de algo (un máximo de 1,2x no cambia nada).
+export function zoomPresets(range: ZoomRange | null): number[] {
+  if (!range || range.max < 1.5) return [];
+  const candidates = [1, 2, 3, 5];
+  const presets = candidates.filter((z) => z >= range.min - 1e-9 && z <= range.max + 1e-9);
+  return presets.length > 1 ? presets : [];
+}
+
+// Zoom con el que empieza el escáner: el último que eligió el usuario si el
+// móvil lo admite; si no, 2x (el código ocupa el doble de píxeles a la misma
+// distancia, que es justo lo que hace falta para leer desde más lejos).
+export function initialZoom(range: ZoomRange | null, stored: number | null): number | null {
+  const presets = zoomPresets(range);
+  if (presets.length === 0) return null;
+  if (stored !== null && presets.includes(stored)) return stored;
+  return presets.includes(2) ? 2 : presets[presets.length - 1];
+}
+
+// Ayuda que se muestra cuando lleva un rato sin leer nada. Al principio no se
+// dice nada (la instrucción fija ya está en pantalla); luego, consejos
+// concretos y cortos, de lo más habitual a lo menos.
+export function scanHint(elapsedMs: number, zoomAvailable: boolean): string | null {
+  if (elapsedMs < 4000) return null;
+  if (elapsedMs < 8000) {
+    return "Mantén el móvil quieto y prueba a acercarte o alejarte un poco: tiene que enfocar.";
+  }
+  return zoomAvailable
+    ? "Si sigue sin leer: más luz, otro ángulo (sin reflejos) o cambia el zoom. También puedes escribir el código."
+    : "Si sigue sin leer: más luz, otro ángulo (sin reflejos) o escribe el código a mano.";
+}

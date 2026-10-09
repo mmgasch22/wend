@@ -6,14 +6,9 @@ import { parseBarcode } from "@/lib/food/barcode";
 import type { BarcodeLookupResult, FoodSearchResult } from "@/lib/food/types";
 import {
   cameraProblemMessage,
-  classifyCameraError,
-  getCameraSupport,
-  SCANNER_VIDEO_CONSTRAINTS,
   type CameraProblem,
 } from "@/lib/food/scanner/camera";
-import { createBarcodeReader, type BarcodeReader } from "@/lib/food/scanner/detectors";
-import { SCAN_VIEW_ASPECT_RATIO } from "@/lib/food/scanner/region";
-import { createScanLoop, type ScanLoop } from "@/lib/food/scanner/scanLoop";
+import ScanCamera from "./ScanCamera";
 
 // El servidor tarda como máximo ~16 s (dos intentos de 8 s); si pasa de aquí
 // algo va mal y es mejor avisar que dejar el "Buscando…" indefinido.
@@ -340,145 +335,6 @@ function ResultMessage({
           Buscar por nombre
         </button>
       </div>
-    </div>
-  );
-}
-
-// La cámara y la lectura. Existe solo mientras se está escaneando: al
-// desmontarse (código leído, cancelar, cambiar de pantalla) libera la cámara.
-function ScanCamera({
-  onCode,
-  onProblem,
-}: {
-  onCode: (code: string) => void;
-  onProblem: (problem: CameraProblem) => void;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [ready, setReady] = useState(false);
-
-  // Las funciones del padre cambian en cada render; se guardan en refs para
-  // que la cámara no se reinicie cada vez que el padre se vuelve a pintar.
-  const onCodeRef = useRef(onCode);
-  const onProblemRef = useRef(onProblem);
-  useEffect(() => {
-    onCodeRef.current = onCode;
-    onProblemRef.current = onProblem;
-  });
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const support = getCameraSupport({
-      isSecureContext: window.isSecureContext,
-      mediaDevices: navigator.mediaDevices,
-    });
-    if (support !== "ok") {
-      onProblemRef.current(support);
-      return;
-    }
-
-    let cancelled = false;
-    let stream: MediaStream | null = null;
-    let reader: BarcodeReader | null = null;
-    let loop: ScanLoop | null = null;
-
-    function release() {
-      loop?.stop();
-      reader?.dispose();
-      stream?.getTracks().forEach((track) => track.stop());
-      if (video) video.srcObject = null;
-    }
-
-    async function start() {
-      // El lector empieza a cargarse mientras el navegador pide el permiso.
-      const readerPromise = createBarcodeReader();
-      readerPromise.catch(() => {});
-
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(SCANNER_VIDEO_CONSTRAINTS);
-      } catch (error) {
-        if (!cancelled) onProblemRef.current(classifyCameraError(error));
-        return;
-      }
-      if (cancelled) {
-        release();
-        return;
-      }
-
-      stream.getVideoTracks().forEach((track) => {
-        track.addEventListener("ended", () => {
-          if (!cancelled) onProblemRef.current("interrupted");
-        });
-      });
-
-      video!.srcObject = stream;
-      try {
-        await video!.play();
-      } catch {
-        // Algunos navegadores rechazan play() si el usuario ya cerró la vista.
-      }
-
-      try {
-        reader = await readerPromise;
-      } catch {
-        if (!cancelled) onProblemRef.current("reader_failed");
-        release();
-        return;
-      }
-      if (cancelled) {
-        release();
-        return;
-      }
-
-      loop = createScanLoop({
-        detect: () => reader!.detect(video!),
-        isAcceptable: (raw) => parseBarcode(raw).ok,
-        onCode: (raw) => {
-          const parsed = parseBarcode(raw);
-          if (!parsed.ok || cancelled) return;
-          navigator.vibrate?.(40);
-          onCodeRef.current(parsed.code);
-        },
-      });
-      loop.start();
-      setReady(true);
-    }
-
-    void start();
-
-    return () => {
-      cancelled = true;
-      release();
-    };
-  }, []);
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div
-        className="relative w-full overflow-hidden rounded-card bg-black"
-        style={{ aspectRatio: SCAN_VIEW_ASPECT_RATIO }}
-      >
-        <video
-          ref={videoRef}
-          className="h-full w-full object-cover"
-          autoPlay
-          muted
-          playsInline
-        />
-        {/* Marco guía: la lectura analiza todo el fotograma, el recuadro solo
-            ayuda a centrar y a sostener el código en horizontal. */}
-        <div className="pointer-events-none absolute inset-x-[10%] bottom-[28%] top-[28%] rounded-lg border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]" />
-        <p
-          aria-live="polite"
-          className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-xs font-medium text-white"
-        >
-          {ready ? "Buscando código…" : "Iniciando cámara…"}
-        </p>
-      </div>
-      <p className="text-xs text-text-dim">
-        Coloca el código de barras dentro del recuadro, con buena luz y a unos 15 cm.
-      </p>
     </div>
   );
 }

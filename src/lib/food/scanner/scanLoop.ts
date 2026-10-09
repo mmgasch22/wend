@@ -8,8 +8,9 @@
 
 export interface ScanLoopOptions {
   // Un intento de lectura: devuelve el texto leído o null si no hay nada.
-  // Si lanza, se trata como "nada leído" y se sigue intentando.
-  detect: () => Promise<string | null> | string | null;
+  // Recibe el número de intento (0, 1, 2...) para poder alternar la forma de
+  // analizar. Si lanza, se trata como "nada leído" y se sigue intentando.
+  detect: (attempt: number) => Promise<string | null> | string | null;
   // Se llama como máximo una vez, con el primer código aceptado.
   onCode: (raw: string) => void;
   // Descarta lecturas dudosas (p. ej. dígito de control incorrecto) sin parar.
@@ -30,6 +31,7 @@ export function createScanLoop({
 }: ScanLoopOptions): ScanLoop {
   let running = false;
   let delivered = false;
+  let attempt = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   async function tick() {
@@ -38,7 +40,7 @@ export function createScanLoop({
 
     let raw: string | null = null;
     try {
-      raw = await detect();
+      raw = await detect(attempt++);
     } catch {
       raw = null;
     }
