@@ -1,52 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { FoodSearchResponse, FoodSearchResult } from "@/lib/food/types";
+import { FOOD_SELECT_COLUMNS, fromFoodRow, type FoodRow } from "@/lib/food/foodRow";
 import {
   mapOpenFoodFactsProducts,
   type OpenFoodFactsProduct,
 } from "@/lib/food/openFoodFacts";
 
-interface FoodRow {
-  id: string;
-  barcode: string | null;
-  name: string;
-  kcal_100g: number;
-  protein_100g: number | null;
-  carbs_100g: number | null;
-  fat_100g: number | null;
-  fiber_100g: number | null;
-  sugar_100g: number | null;
-  salt_100g: number | null;
-}
-
 const USER_AGENT = "WEND - Personal Nutrition App - Development";
 const SEARCH_A_LICIOUS_URL = "https://search.openfoodfacts.org/search";
 const LEGACY_SEARCH_URL = "https://world.openfoodfacts.org/cgi/search.pl";
 const REQUEST_TIMEOUT_MS = 8000;
-
-function isIncomplete(row: {
-  protein_100g: number | null;
-  carbs_100g: number | null;
-  fat_100g: number | null;
-}): boolean {
-  return row.protein_100g === null || row.carbs_100g === null || row.fat_100g === null;
-}
-
-function fromFoodRow(row: FoodRow): FoodSearchResult {
-  return {
-    id: row.id,
-    barcode: row.barcode,
-    name: row.name,
-    kcal100g: row.kcal_100g,
-    protein100g: row.protein_100g,
-    carbs100g: row.carbs_100g,
-    fat100g: row.fat_100g,
-    fiber100g: row.fiber_100g,
-    sugar100g: row.sugar_100g,
-    salt100g: row.salt_100g,
-    incomplete: isIncomplete(row),
-  };
-}
 
 async function fetchJson(url: URL): Promise<unknown> {
   const response = await fetch(url, {
@@ -110,9 +74,7 @@ export async function GET(request: NextRequest) {
   const [yourFoodsResult, openFoodFactsResult] = await Promise.allSettled([
     supabase
       .from("foods")
-      .select(
-        "id, barcode, name, kcal_100g, protein_100g, carbs_100g, fat_100g, fiber_100g, sugar_100g, salt_100g",
-      )
+      .select(FOOD_SELECT_COLUMNS)
       .eq("created_by", user.id)
       .ilike("name", `%${query}%`)
       .limit(10),

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveRequestedDate } from "@/lib/date/dates";
 import { dashboardUrl } from "@/lib/navigation/dashboardUrl";
+import { parseBarcode } from "@/lib/food/barcode";
 
 export type FoodActionState = { error: string } | undefined;
 
@@ -12,6 +13,26 @@ function parseNumber(value: FormDataEntryValue | null): number | null {
   if (value === null || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+// Código de PostgreSQL para "ya existe una fila con ese valor único".
+const UNIQUE_VIOLATION = "23505";
+
+const SAVE_FOOD_ERROR = "No se pudo guardar el alimento. Inténtalo de nuevo.";
+
+async function findFoodByBarcode(
+  supabase: SupabaseClient,
+  barcode: string,
+): Promise<{ id: string; created_by: string | null } | null> {
+  const { data } = await supabase
+    .from("foods")
+    .select("id, created_by")
+    .eq("barcode", barcode)
+    .maybeSingle();
+
+  return data ?? null;
 }
 
 export async function logFood(
@@ -84,23 +105,51 @@ export async function logFood(
       };
     }
 
+    // Un alimento manual puede llevar el código de barras de un producto que
+    // OpenFoodFacts no tiene (o tiene sin datos), para reconocerlo la próxima
+    // vez que se escanee.
+    const rawBarcode = (formData.get("barcode") as string) || "";
+    const parsedBarcode = rawBarcode ? parseBarcode(rawBarcode) : null;
+    const barcode = parsedBarcode?.ok ? parsedBarcode.code : null;
+
+    const manualRow = {
+      name,
+      kcal_100g: kcal100g,
+      protein_100g: protein100g,
+      carbs_100g: carbs100g,
+      fat_100g: fat100g,
+      created_by: user.id,
+    };
+
     const { data: food, error: foodError } = await supabase
       .from("foods")
-      .insert({
-        name,
-        kcal_100g: kcal100g,
-        protein_100g: protein100g,
-        carbs_100g: carbs100g,
-        fat_100g: fat100g,
-        created_by: user.id,
-      })
+      .insert({ ...manualRow, barcode })
       .select("id")
       .single();
 
-    if (foodError || !food) {
-      return { error: foodError?.message ?? "No se pudo crear el alimento." };
+    if (food) {
+      foodId = food.id;
+    } else if (barcode && foodError?.code === UNIQUE_VIOLATION) {
+      // Ese código ya está en el catálogo. Si es un alimento tuyo se reutiliza
+      // (sin duplicarlo); si es de otra persona o viene de OpenFoodFacts, el
+      // tuyo se guarda igualmente, pero sin el código (es único en la base).
+      const existing = await findFoodByBarcode(supabase, barcode);
+      if (existing && existing.created_by === user.id) {
+        foodId = existing.id;
+      } else {
+        const { data: withoutCode, error: withoutCodeError } = await supabase
+          .from("foods")
+          .insert({ ...manualRow, barcode: null })
+          .select("id")
+          .single();
+        if (withoutCodeError || !withoutCode) {
+          return { error: SAVE_FOOD_ERROR };
+        }
+        foodId = withoutCode.id;
+      }
+    } else {
+      return { error: SAVE_FOOD_ERROR };
     }
-    foodId = food.id;
   } else {
     const barcode = (formData.get("barcode") as string) || null;
     const kcal100g = parseNumber(formData.get("kcal_100g"));
@@ -121,18 +170,34 @@ export async function logFood(
       salt_100g: parseNumber(formData.get("salt_100g")),
     };
 
-    const { data: food, error: foodError } = barcode
-      ? await supabase
-          .from("foods")
-          .upsert(foodRow, { onConflict: "barcode" })
-          .select("id")
-          .single()
-      : await supabase.from("foods").insert(foodRow).select("id").single();
+    // `foods` es un catálogo compartido sin política de UPDATE: no se puede
+    // hacer un upsert por `barcode` (fallaba al registrar por segunda vez un
+    // producto ya guardado). Se busca primero y solo se inserta si no existe;
+    // si dos peticiones coinciden y la segunda choca con la restricción
+    // única, se reutiliza la fila que ganó. Nunca hay dos filas por código.
+    const existing = barcode ? await findFoodByBarcode(supabase, barcode) : null;
 
-    if (foodError || !food) {
-      return { error: foodError?.message ?? "No se pudo guardar el alimento." };
+    if (existing) {
+      foodId = existing.id;
+    } else {
+      const { data: food, error: foodError } = await supabase
+        .from("foods")
+        .insert(foodRow)
+        .select("id")
+        .single();
+
+      if (food) {
+        foodId = food.id;
+      } else if (barcode && foodError?.code === UNIQUE_VIOLATION) {
+        const winner = await findFoodByBarcode(supabase, barcode);
+        if (!winner) {
+          return { error: SAVE_FOOD_ERROR };
+        }
+        foodId = winner.id;
+      } else {
+        return { error: SAVE_FOOD_ERROR };
+      }
     }
-    foodId = food.id;
   }
 
   // Nunca se confía en la fecha del formulario tal cual: resolveRequestedDate
@@ -148,7 +213,7 @@ export async function logFood(
   });
 
   if (logError) {
-    return { error: logError.message };
+    return { error: "No se pudo registrar el alimento. Inténtalo de nuevo." };
   }
 
   // Vuelve al día que se estaba viendo, no siempre a "hoy" — si no, editar

@@ -24,6 +24,21 @@ export interface FoodSearchResponse {
   openFoodFactsUnavailable?: boolean;
 }
 
+// Resultado de buscar un producto por su código de barras. Cada caso exige
+// una reacción distinta en pantalla, por eso no se reduce a "hay / no hay":
+//   found             -> se muestra la ficha para confirmar y elegir cantidad.
+//   insufficient_data -> el producto existe pero sin nombre o sin calorías:
+//                        se ofrece crearlo a mano asociándole el código.
+//   not_found         -> el código no existe en OpenFoodFacts.
+//   unavailable       -> el servicio falló: NO se sabe si existe; reintentar.
+//   invalid_code      -> no es un código de barras válido (errata, lectura mala).
+export type BarcodeLookupResult =
+  | { status: "found"; source: "local" | "openfoodfacts"; food: FoodSearchResult }
+  | { status: "insufficient_data"; barcode: string; name: string | null }
+  | { status: "not_found"; barcode: string }
+  | { status: "unavailable" }
+  | { status: "invalid_code" };
+
 // Una comida habitual del usuario (Desayuno, "Post-entreno"...). No depende
 // de la fecha — food_logs.date es lo que sitúa un registro en un día
 // concreto; esto es solo "qué comidas existen".
