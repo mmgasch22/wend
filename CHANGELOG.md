@@ -13,12 +13,14 @@
 - Los alimentos creados a mano pueden llevar un código de barras asociado para
   reconocerlos la próxima vez.
 - La ficha del producto muestra los macros por 100 g y nombra los que faltan.
-
 - PWA mínima (rama `v2/pwa`): manifest, iconos provisionales, metadatos de iOS y
   `Cache-Control: private, no-store` en páginas y API. Sin service worker. Ver
   `docs/pwa.md`.
 - Cabeceras de seguridad HTTP básicas (`nosniff`, `X-Frame-Options`, `Referrer-Policy`,
   `Permissions-Policy`).
+- Descarga de tus datos (`GET /api/export`): JSON completo o CSV por tabla, desde
+  *Editar perfil → Tus datos*. Cubre el derecho de acceso y portabilidad (arts. 15 y 20
+  RGPD).
 
 ### Corregido
 - Registrar por segunda vez un producto con código ya guardado fallaba con un

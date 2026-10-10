@@ -55,6 +55,24 @@ export default async function EditProfilePage() {
             }}
           />
         </Card>
+        <Card>
+          <h2 className="text-base font-semibold text-foreground">Tus datos</h2>
+          <p className="mt-1 text-sm text-text-dim">
+            Descarga una copia de todo lo que WEND guarda de ti. El JSON lo
+            contiene todo; el CSV de comidas se abre en Excel o Sheets.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-4 text-sm font-medium text-primary">
+            <a href="/api/export" download>
+              Descargar todo (JSON)
+            </a>
+            <a href="/api/export?formato=csv&tabla=comidas" download>
+              Comidas (CSV)
+            </a>
+            <a href="/api/export?formato=csv&tabla=peso" download>
+              Peso (CSV)
+            </a>
+          </div>
+        </Card>
       </div>
     </main>
   );
