@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { PWA } from "@/lib/pwa/config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,27 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WEND",
-  description: "WEND — registro de comidas, macros y hábitos, sin fricción.",
+  title: PWA.name,
+  description: PWA.description,
+  applicationName: PWA.name,
+  // iOS ignora parte del manifest: para "Añadir a pantalla de inicio" usa
+  // estos metadatos y el apple-touch-icon.
+  appleWebApp: { capable: true, title: PWA.name, statusBarStyle: "default" },
+  icons: {
+    icon: [
+      { url: PWA.icons.any192, sizes: "192x192", type: "image/png" },
+      { url: PWA.icons.any512, sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: PWA.icons.apple180, sizes: "180x180", type: "image/png" }],
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: PWA.themeColorLight },
+    { media: "(prefers-color-scheme: dark)", color: PWA.themeColorDark },
+  ],
 };
 
 // Aplica el tema guardado (localStorage) al <html> antes del primer

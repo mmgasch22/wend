@@ -14,6 +14,12 @@
   reconocerlos la próxima vez.
 - La ficha del producto muestra los macros por 100 g y nombra los que faltan.
 
+- PWA mínima (rama `v2/pwa`): manifest, iconos provisionales, metadatos de iOS y
+  `Cache-Control: private, no-store` en páginas y API. Sin service worker. Ver
+  `docs/pwa.md`.
+- Cabeceras de seguridad HTTP básicas (`nosniff`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy`).
+
 ### Corregido
 - Registrar por segunda vez un producto con código ya guardado fallaba con un
   error de seguridad de la base de datos (`foods` no tiene política de `UPDATE`
