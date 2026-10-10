@@ -109,3 +109,21 @@ Nada se ha subido ni desplegado. Si lo autorizas, hay dos opciones:
    (salvo `localhost`), así que no sirve para probar esto.
 
 Decisión pendiente: ¿autorizas subir la rama `v2/pwa` para generar la vista previa?
+
+## Auditoría del 2026-10-10 (rama `v2/prueba-movil`)
+
+Hecho con compilación de producción local y el navegador integrado de la aplicación (no
+un móvil real):
+
+- `isSecureContext` verdadero en `localhost` (en un dominio HTTPS de Vercel también lo será;
+  en HTTP simple por IP de red local la cámara no funcionaría).
+- El manifest se descarga y los tres iconos (`192`, `512`, `maskable 512`) se decodifican con
+  el tamaño declarado; `apple-touch-icon` presente; `theme-color` claro y oscuro presentes.
+- Sin service worker registrado (0), como se diseñó.
+- Sesión: la cookie de Supabase es la misma que en el navegador; el cierre de sesión ya
+  invalida el acceso y las respuestas llevan `no-store`.
+
+**No comprobado** (necesita móvil): aparición del diálogo de instalación, icono en la
+pantalla de inicio, comportamiento de la sesión en el modo independiente de iOS, cámara en
+modo aplicación, redirecciones de los enlaces de correo (se abren en el navegador, no en la
+app instalada). Plan de pruebas y de despliegue en `despliegue-prueba.md`.
