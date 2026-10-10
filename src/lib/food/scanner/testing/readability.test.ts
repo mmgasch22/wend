@@ -27,7 +27,10 @@ const clean: Scenario = {
 const decoder = createLuminanceDecoder(zxing);
 const TRIALS = 6;
 
-describe("lectura a distancia (sintético)", () => {
+// Cada prueba decodifica decenas de fotogramas de 1080x1920 en CPU: con el
+// límite por defecto (5 s) falla en equipos lentos o con carga, sin que haya
+// ningún fallo de lectura.
+describe("lectura a distancia (sintético)", { timeout: 60_000 }, () => {
   it("a un 20 % del ancho el análisis anterior no lee y el nuevo sí", async () => {
     const legacy = await successRate(decoder, clean, [LEGACY_PASS], 0.2, TRIALS);
     const current = await successRate(decoder, clean, [...SCAN_SCHEDULE], 0.2, TRIALS);
