@@ -80,11 +80,11 @@ export const TABLAS: Record<string, Tabla> = {
     tabla: "comidas",
     from: "food_logs",
     select:
-      "date, meal_type, grams, foods(name, barcode, kcal_100g, protein_100g, carbs_100g, fat_100g, fiber_100g, sugar_100g, salt_100g)",
+      "date, grams, meal_slot_id, meal_slots(name), foods(name, barcode, kcal_100g, protein_100g, carbs_100g, fat_100g, fiber_100g, sugar_100g, salt_100g)",
     userColumn: "user_id",
     order: "date",
     csvColumns: [
-      "date", "meal_type", "grams", "food_name", "barcode", "kcal_100g",
+      "date", "meal_name", "grams", "food_name", "barcode", "kcal_100g",
       "protein_100g", "carbs_100g", "fat_100g", "fiber_100g", "sugar_100g",
       "salt_100g",
     ],
@@ -110,8 +110,11 @@ export async function fetchAll(readPage: PageReader, t: Tabla): Promise<Row[]> {
 export function flatten(t: Tabla, row: Row): Record<string, CsvCell> {
   if (t.tabla !== "comidas") return row as Record<string, CsvCell>;
   const food = (row.foods ?? {}) as Record<string, CsvCell>;
+  const slot = (row.meal_slots ?? {}) as Record<string, CsvCell>;
   const flat: Record<string, CsvCell> = { ...(row as Record<string, CsvCell>) };
   delete flat.foods;
-  return { ...flat, ...food, food_name: food.name };
+  delete flat.meal_slots;
+  // meal_name vacío = comida sin tramo asignado (meal_slot_id null).
+  return { ...flat, ...food, food_name: food.name, meal_name: slot.name };
 }
 

@@ -32,11 +32,13 @@ describe("flatten", () => {
   it("aplana el alimento anidado en las comidas", () => {
     const flat = flatten(TABLAS.comidas, {
       date: "2026-10-10",
-      meal_type: "lunch",
+      meal_slot_id: "s1",
+      meal_slots: { name: "Comida" },
       grams: 150,
       foods: { name: "Arroz", barcode: null, kcal_100g: 130 },
     });
-    expect(flat).toMatchObject({ food_name: "Arroz", kcal_100g: 130, grams: 150 });
+    expect(flat).toMatchObject({ food_name: "Arroz", kcal_100g: 130, grams: 150, meal_name: "Comida" });
+    expect(flat).not.toHaveProperty("meal_slots");
     expect(flat).not.toHaveProperty("foods");
   });
 
