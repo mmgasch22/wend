@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SAVE_ERROR } from "@/lib/errors/userMessage";
 import { todayIso } from "@/lib/date/dates";
 import { macroGramsFromPercentages } from "@/lib/nutrition/macroGrams";
 
@@ -71,7 +72,7 @@ export async function updateTargetManually(
   );
 
   if (error) {
-    return { error: error.message };
+    return { error: SAVE_ERROR };
   }
 
   redirect("/dashboard");

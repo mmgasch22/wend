@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SAVE_ERROR } from "@/lib/errors/userMessage";
 import { calculateAge } from "@/lib/nutrition/age";
 import { calculateBmr } from "@/lib/nutrition/bmr";
 import { calculateTdee } from "@/lib/nutrition/tdee";
@@ -54,7 +55,7 @@ export async function updateProfile(
     .eq("id", user.id);
 
   if (profileError) {
-    return { error: profileError.message };
+    return { error: SAVE_ERROR };
   }
 
   const { data: latestWeight } = await supabase
@@ -104,7 +105,7 @@ export async function updateProfile(
   );
 
   if (targetError) {
-    return { error: targetError.message };
+    return { error: SAVE_ERROR };
   }
 
   redirect("/dashboard");
