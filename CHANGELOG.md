@@ -14,6 +14,10 @@
   reconocerlos la próxima vez.
 - La ficha del producto muestra los macros por 100 g y nombra los que faltan.
 
+- Descarga de tus datos (`GET /api/export`): JSON completo o CSV por tabla, desde
+  *Editar perfil → Tus datos*. Cubre el derecho de acceso y portabilidad (arts. 15 y 20
+  RGPD).
+
 ### Corregido
 - Registrar por segunda vez un producto con código ya guardado fallaba con un
   error de seguridad de la base de datos (`foods` no tiene política de `UPDATE`
